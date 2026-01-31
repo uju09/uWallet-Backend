@@ -8,8 +8,8 @@ export const generateWallet = async (req, res) => {
     let { seed, walletID } = req.body;
 
     // seed is expected to be a string (mnemonic)
-    if (!seed || !walletID) {
-      throw new Error("Seed and Wallet ID are required");
+    if (!seed) {
+      throw new Error("Seed is required");
     }
 
     // Handle case where seed is sent as an encrypted object
