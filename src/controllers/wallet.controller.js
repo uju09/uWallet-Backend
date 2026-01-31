@@ -5,33 +5,40 @@ import { decryptData, encryptData } from "../storage/secure.storage.js";
 
 export const generateWallet = async (req, res) => {
   try {
-    const { seed, walletID } = await req.body;
+    let { seed, walletID } = req.body;
 
-    console.log(seed);
+    // seed is expected to be a string (mnemonic)
+    if (!seed || !walletID) {
+      throw new Error("Seed and Wallet ID are required");
+    }
 
-    const { encryptedData, nonce } = seed;
+    // Handle case where seed is sent as an encrypted object
+    if (typeof seed === 'object' && seed.encryptedData && seed.nonce) {
+      seed = decryptData(seed);
+    } else if (typeof seed === 'string') {
+      // trying to parse if it is a stringified json object
+      try {
+        const parsed = JSON.parse(seed);
+        if (parsed.encryptedData && parsed.nonce) {
+          seed = decryptData(parsed);
+        }
+      } catch (e) {
+        // ignore, it's just a plain string mnemonic
+      }
+    }
 
-    console.log(encryptedData, nonce);
-
-    const seedPhrase = decryptData({ encryptedData, nonce });
-
-    console.log(seedPhrase);
-
-    const wallet = new HDWallet(seedPhrase);
+    const wallet = new HDWallet(seed);
 
     const derivedSeed = wallet.deriveSeed(walletID);
 
-    console.log(derivedSeed);
-
     const { publicKey, privateKey } = createKeyPair(derivedSeed);
-
-    console.log({ publicKey, privateKey });
 
     const encryptedPrivateKey = encryptData(privateKey);
 
     return new APIResponse({ publicKey, encryptedPrivateKey }, 200, "Wallet Generated Successfully").send(res);
 
   } catch (err) {
+    console.error("Error generating wallet:", err);
     return new APIResponse(null, 500, err.message).send(res);
   }
 }
